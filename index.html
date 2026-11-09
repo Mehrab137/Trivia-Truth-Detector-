@@ -17,10 +17,9 @@
   3) CONTROLLER MODE (phones): scan the QR — it opens  <your address>#ABCD — or open
                                the page, click "JOIN AS PLAYER", type the code.
   4) Host presses OPEN CASE (Enter / Space). Needs 3-8 players.
-  Firebase: needs Anonymous sign-in enabled (already true for your cricket / Brain Flip
-  project) and database rules that allow signed-in users to read/write  rooms/BF*.
-  (Rooms use the same  rooms/BFxxxx  path as Brain Flip so your existing rules apply;
-  the room's  game  field says "truthdetector", so the two games never mix.)
+  Firebase: needs Anonymous sign-in enabled (already true for your cricket / Brain Flip project)
+  and the rules from  database.rules.json  merged into your Realtime Database rules.
+  Rooms live under  truthRooms/ABCD  — separate from your other games' rooms.
 
   Host keys: Enter/Space = start / skip the current timer / play again
              Q Q = quit to lobby (press twice) · M = mute · F = fullscreen
@@ -345,7 +344,7 @@ input.field:focus{border-color:var(--phos);box-shadow:0 0 18px #4dffa655}
     <summary>HOW TO LAUNCH</summary>
     <p><b>Host mode (TV / laptop):</b> press <i>Host on this screen</i> (or load <code>?host</code>). A QR code and 4-letter room code appear. <b>3–8 players</b> needed.</p>
     <p><b>Controller mode (phones):</b> scan the TV's QR code (opens <code>…#ABCD</code>) or press <i>Join as player</i> and type the code.</p>
-    <p><b>Each round:</b> everyone votes a trivia <i>domain</i> → one player is the <span class="tag guess">GUESSER</span> and sees no answers. One other player is the <span class="tag spy">TRUTH SPY</span> (real answer, tells the truth); everyone else is a <span class="tag bluff">MASTER BLUFF</span> (real answer, invents a believable lie). After 10 seconds of prep, they speak out loud to the Guesser, who gets <b>2 chances</b> to pick the truth-teller.</p>
+    <p><b>Each round:</b> everyone votes a trivia <i>domain</i> → one player is the <span class="tag guess">GUESSER</span> and sees no answers. One other player is the <span class="tag spy">TRUTH SPY</span> (real answer, tells the truth); everyone else is a <span class="tag bluff">MASTER BLUFF</span> (real answer, invents a believable lie). After 10 seconds of prep, they speak out loud to the Guesser, who gets <b>2 chances</b> to pick the truth-teller (just 1 chance in a 3-player game).</p>
     <p><b>Scoring:</b> Guesser +200 (1st try) / +100 (2nd) · Truth Spy +100 if detected · Liar +150 each time the Guesser picks them by mistake.</p>
     <p><b>Needs:</b> the page hosted at a normal web address (not file://) so phones can open it.</p>
   </details>
@@ -382,7 +381,7 @@ input.field:focus{border-color:var(--phos);box-shadow:0 0 18px #4dffa655}
       <button class="btn big" id="btnStart" disabled>▶ OPEN CASE</button>
       <div id="needMsg"></div>
       <div class="howto">
-        Vote a <b>domain</b> → a <b>Guesser</b> is picked and sees no answers → one player is the <span class="tag spy">TRUTH SPY</span>, the rest are <span class="tag bluff">MASTER BLUFFS</span> → 10 s to prep → speak out loud → the Guesser gets <b>2 chances</b> to spot the truth-teller.<br>
+        Vote a <b>domain</b> → a <b>Guesser</b> is picked and sees no answers → one player is the <span class="tag spy">TRUTH SPY</span>, the rest are <span class="tag bluff">MASTER BLUFFS</span> → 10 s to prep → speak out loud → the Guesser gets <b>2 chances</b> to spot the truth-teller (1 chance with 3 players).<br>
         <b>+200 / +100</b> Guesser · <b>+100</b> detected Spy · <b>+150</b> per Liar who fools the Guesser.
         <div style="opacity:.6;margin-top:.5rem">Enter / Space = start &amp; skip timers · Q Q = back to lobby · M = mute · F = fullscreen</div>
       </div>
@@ -526,54 +525,128 @@ input.field:focus{border-color:var(--phos);box-shadow:0 0 18px #4dffa655}
      a = the real answer shown to the Truth Spy / Master Bluffs.
      f = a one-line fun fact shown on the result screen.
      ===================================================================== -->
-<script type="application/json" id="trivia-data">
-[
- {"id":"sci1","d":"science","q":"Which planet has a day (one full rotation on its axis) that lasts longer than its year?","a":"Venus","f":"Venus spins once every ~243 Earth days but orbits the Sun in ~225."},
- {"id":"sci2","d":"science","q":"How many hearts does an octopus have?","a":"Three","f":"Two pump blood through the gills; the third pumps it around the body."},
- {"id":"sci3","d":"science","q":"Which Australian animal has fingerprints so similar to a human's that they're nearly indistinguishable?","a":"The koala","f":"University of Adelaide researchers found koala prints in the mid-1990s."},
- {"id":"sci4","d":"science","q":"Which chemical element has the symbol 'Sb'?","a":"Antimony","f":"The symbol comes from the Latin word 'stibium'."},
- {"id":"sci5","d":"science","q":"What is the smallest bone in the human body?","a":"The stapes (stirrup bone in the middle ear)","f":"It is only roughly 3 mm long."},
- {"id":"sci6","d":"science","q":"What is a baby echidna called?","a":"A puggle","f":"Baby platypuses are called puggles too."},
- {"id":"sci7","d":"science","q":"Which planet is the only one named after a Greek god rather than a Roman god?","a":"Uranus","f":"It's named for Ouranos, the Greek god of the sky."},
- {"id":"sci8","d":"science","q":"At roughly what altitude does space officially begin, according to the Kármán line?","a":"About 100 km (62 miles)","f":"The FAI sets the line at 100 km; some US agencies use 50 miles."},
-
- {"id":"his1","d":"history","q":"Was Cleopatra closer in time to the building of the Great Pyramid of Giza, or to the Moon landing?","a":"The Moon landing","f":"The Great Pyramid is ~2,500 years older than her; the Moon landing came ~2,000 years after."},
- {"id":"his2","d":"history","q":"The Hundred Years' War actually lasted for how many years?","a":"116 years","f":"It ran from 1337 to 1453."},
- {"id":"his3","d":"history","q":"The Anglo-Zanzibar War of 1896 is often called the shortest war in history. About how long did it last?","a":"About 40 minutes","f":"Sources quote anywhere from 38 to 45 minutes."},
- {"id":"his4","d":"history","q":"In 1518, many people in Strasbourg danced uncontrollably for days. What is this episode called?","a":"The Dancing Plague (dancing mania)","f":"Historians still debate what caused it."},
- {"id":"his5","d":"history","q":"The 1815 eruption of which volcano led to 1816 being called 'the Year Without a Summer'?","a":"Mount Tambora","f":"It erupted in Indonesia and cooled the climate worldwide."},
- {"id":"his6","d":"history","q":"Which country was the first to give women the right to vote in national elections, in 1893?","a":"New Zealand","f":"Women there couldn't stand for parliament until 1919."},
- {"id":"his7","d":"history","q":"Which Wonder of the Ancient World stood in the city of Halicarnassus?","a":"The Mausoleum at Halicarnassus","f":"It gave us the word 'mausoleum'."},
- {"id":"his8","d":"history","q":"Which US state was an independent republic from 1836 until it joined the Union in 1845?","a":"Texas","f":"It became the 28th state."},
-
- {"id":"foo1","d":"food","q":"What is the world's most expensive spice by weight?","a":"Saffron","f":"Each crocus flower yields only three tiny stigmas to harvest."},
- {"id":"foo2","d":"food","q":"What is natto, the sticky Japanese breakfast food, made from?","a":"Fermented soybeans","f":"It is fermented using Bacillus subtilis bacteria."},
- {"id":"foo3","d":"food","q":"Which Italian cured meat, used in authentic carbonara, is made from the pig's cheek?","a":"Guanciale","f":"Pancetta (pork belly) is the common substitute."},
- {"id":"foo4","d":"food","q":"What is the spongy, sour flatbread of Ethiopia and Eritrea, traditionally made from teff?","a":"Injera","f":"Diners tear off pieces to scoop up stews."},
- {"id":"foo5","d":"food","q":"What is the boat-shaped Georgian bread filled with cheese and topped with an egg called?","a":"Khachapuri","f":"The Adjarian version is the one shaped like a boat."},
- {"id":"foo6","d":"food","q":"Traditionally, haggis is cooked inside which animal organ?","a":"A sheep's stomach","f":"Many modern haggis use an artificial casing instead."},
- {"id":"foo7","d":"food","q":"Which country grows more coffee than any other?","a":"Brazil","f":"It has been the top producer for well over a century."},
- {"id":"foo8","d":"food","q":"What scale measures how hot chili peppers are?","a":"The Scoville scale","f":"Pharmacist Wilbur Scoville devised it in 1912."},
-
- {"id":"spo1","d":"sports","q":"In which athletics event did Dick Fosbury revolutionise technique with his 'Flop' at the 1968 Olympics?","a":"High jump","f":"He won gold in Mexico City."},
- {"id":"spo2","d":"sports","q":"What is the maximum possible break in a standard frame of snooker (no free ball)?","a":"147","f":"Fifteen reds with fifteen blacks, then all six colours."},
- {"id":"spo3","d":"sports","q":"Which Ethiopian runner won the 1960 Olympic marathon in Rome while running barefoot?","a":"Abebe Bikila","f":"He won again in Tokyo in 1964 — wearing shoes."},
- {"id":"spo4","d":"sports","q":"Which gymnast scored the first perfect 10 in Olympic history, at the 1976 Montreal Games?","a":"Nadia Comăneci","f":"The scoreboard could only display 1.00 — it wasn't built for a 10."},
- {"id":"spo5","d":"sports","q":"Which NBA player scored 100 points in a single game in 1962?","a":"Wilt Chamberlain","f":"He did it for the Philadelphia Warriors against the Knicks."},
- {"id":"spo6","d":"sports","q":"Who in 1967 became the first woman to run the Boston Marathon with an official race number?","a":"Kathrine Switzer","f":"She wore bib number 261."},
- {"id":"spo7","d":"sports","q":"The Iditarod, held every March in Alaska, is a long-distance race for which kind of team?","a":"Sled dogs (a dog-sled race)","f":"The trail covers roughly 1,000 miles."},
- {"id":"spo8","d":"sports","q":"Which country hosted and won the very first FIFA World Cup, in 1930?","a":"Uruguay","f":"They beat Argentina 4–2 in the final in Montevideo."},
-
- {"id":"gen1","d":"general","q":"What was the first item ever scanned with a barcode at a supermarket checkout?","a":"A pack of chewing gum","f":"A 10-pack of Wrigley's Juicy Fruit, scanned in Troy, Ohio, in 1974."},
- {"id":"gen2","d":"general","q":"Which letter of the alphabet does not appear in the name of any US state?","a":"The letter Q","f":"Every other letter shows up in at least one state name."},
- {"id":"gen3","d":"general","q":"What is a group of flamingos called?","a":"A flamboyance","f":"A group is also sometimes called a 'stand'."},
- {"id":"gen4","d":"general","q":"Which is the only country in the world whose national flag is not a rectangle or a square?","a":"Nepal","f":"Its flag is made of two stacked pennants."},
- {"id":"gen5","d":"general","q":"What colour is a polar bear's skin?","a":"Black","f":"Their fur is translucent, not actually white."},
- {"id":"gen6","d":"general","q":"What is the national animal of Scotland?","a":"The unicorn","f":"Scottish kings adopted it in the 12th century."},
- {"id":"gen7","d":"general","q":"Measured from its base on the ocean floor, which mountain is the tallest in the world?","a":"Mauna Kea (Hawaii)","f":"It is more than 10,000 m from seabed to summit."},
- {"id":"gen8","d":"general","q":"Which country has the most islands in the world?","a":"Sweden","f":"Over 260,000 of them, though almost all are uninhabited."}
-]
-</script>
+<script type="application/json" id="trivia-data">[
+  {"id": "sci1", "d": "science", "q": "Which planet has a day (one full rotation on its axis) that lasts longer than its year?", "a": "Venus", "f": "Venus spins once every ~243 Earth days but orbits the Sun in ~225."},
+  {"id": "sci2", "d": "science", "q": "How many hearts does an octopus have?", "a": "Three", "f": "Two pump blood through the gills; the third pumps it around the body."},
+  {"id": "sci3", "d": "science", "q": "Which Australian animal has fingerprints so similar to a human's that they're nearly indistinguishable?", "a": "The koala", "f": "University of Adelaide researchers found koala prints in the mid-1990s."},
+  {"id": "sci4", "d": "science", "q": "Which chemical element has the symbol 'Sb'?", "a": "Antimony", "f": "The symbol comes from the Latin word 'stibium'."},
+  {"id": "sci5", "d": "science", "q": "What is the smallest bone in the human body?", "a": "The stapes (stirrup bone in the middle ear)", "f": "It is only roughly 3 mm long."},
+  {"id": "sci6", "d": "science", "q": "What is a baby echidna called?", "a": "A puggle", "f": "Baby platypuses are called puggles too."},
+  {"id": "sci7", "d": "science", "q": "Which planet is the only one named after a Greek god rather than a Roman god?", "a": "Uranus", "f": "It's named for Ouranos, the Greek god of the sky."},
+  {"id": "sci8", "d": "science", "q": "At roughly what altitude does space officially begin, according to the Kármán line?", "a": "About 100 km (62 miles)", "f": "The FAI sets the line at 100 km; some US agencies use 50 miles."},
+  {"id": "his1", "d": "history", "q": "Was Cleopatra closer in time to the building of the Great Pyramid of Giza, or to the Moon landing?", "a": "The Moon landing", "f": "The Great Pyramid is ~2,500 years older than her; the Moon landing came ~2,000 years after."},
+  {"id": "his2", "d": "history", "q": "The Hundred Years' War actually lasted for how many years?", "a": "116 years", "f": "It ran from 1337 to 1453."},
+  {"id": "his3", "d": "history", "q": "The Anglo-Zanzibar War of 1896 is often called the shortest war in history. About how long did it last?", "a": "About 40 minutes", "f": "Sources quote anywhere from 38 to 45 minutes."},
+  {"id": "his4", "d": "history", "q": "In 1518, many people in Strasbourg danced uncontrollably for days. What is this episode called?", "a": "The Dancing Plague (dancing mania)", "f": "Historians still debate what caused it."},
+  {"id": "his5", "d": "history", "q": "The 1815 eruption of which volcano led to 1816 being called 'the Year Without a Summer'?", "a": "Mount Tambora", "f": "It erupted in Indonesia and cooled the climate worldwide."},
+  {"id": "his6", "d": "history", "q": "Which country was the first to give women the right to vote in national elections, in 1893?", "a": "New Zealand", "f": "Women there couldn't stand for parliament until 1919."},
+  {"id": "his7", "d": "history", "q": "Which Wonder of the Ancient World stood in the city of Halicarnassus?", "a": "The Mausoleum at Halicarnassus", "f": "It gave us the word 'mausoleum'."},
+  {"id": "his8", "d": "history", "q": "Which US state was an independent republic from 1836 until it joined the Union in 1845?", "a": "Texas", "f": "It became the 28th state."},
+  {"id": "foo1", "d": "food", "q": "What is the world's most expensive spice by weight?", "a": "Saffron", "f": "Each crocus flower yields only three tiny stigmas to harvest."},
+  {"id": "foo2", "d": "food", "q": "What is natto, the sticky Japanese breakfast food, made from?", "a": "Fermented soybeans", "f": "It is fermented using Bacillus subtilis bacteria."},
+  {"id": "foo3", "d": "food", "q": "Which Italian cured meat, used in authentic carbonara, is made from the pig's cheek?", "a": "Guanciale", "f": "Pancetta (pork belly) is the common substitute."},
+  {"id": "foo4", "d": "food", "q": "What is the spongy, sour flatbread of Ethiopia and Eritrea, traditionally made from teff?", "a": "Injera", "f": "Diners tear off pieces to scoop up stews."},
+  {"id": "foo5", "d": "food", "q": "What is the boat-shaped Georgian bread filled with cheese and topped with an egg called?", "a": "Khachapuri", "f": "The Adjarian version is the one shaped like a boat."},
+  {"id": "foo6", "d": "food", "q": "Traditionally, haggis is cooked inside which animal organ?", "a": "A sheep's stomach", "f": "Many modern haggis use an artificial casing instead."},
+  {"id": "foo7", "d": "food", "q": "Which country grows more coffee than any other?", "a": "Brazil", "f": "It has been the top producer for well over a century."},
+  {"id": "foo8", "d": "food", "q": "What scale measures how hot chili peppers are?", "a": "The Scoville scale", "f": "Pharmacist Wilbur Scoville devised it in 1912."},
+  {"id": "spo1", "d": "sports", "q": "In which athletics event did Dick Fosbury revolutionise technique with his 'Flop' at the 1968 Olympics?", "a": "High jump", "f": "He won gold in Mexico City."},
+  {"id": "spo2", "d": "sports", "q": "What is the maximum possible break in a standard frame of snooker (no free ball)?", "a": "147", "f": "Fifteen reds with fifteen blacks, then all six colours."},
+  {"id": "spo3", "d": "sports", "q": "Which Ethiopian runner won the 1960 Olympic marathon in Rome while running barefoot?", "a": "Abebe Bikila", "f": "He won again in Tokyo in 1964 — wearing shoes."},
+  {"id": "spo4", "d": "sports", "q": "Which gymnast scored the first perfect 10 in Olympic history, at the 1976 Montreal Games?", "a": "Nadia Comăneci", "f": "The scoreboard could only display 1.00 — it wasn't built for a 10."},
+  {"id": "spo5", "d": "sports", "q": "Which NBA player scored 100 points in a single game in 1962?", "a": "Wilt Chamberlain", "f": "He did it for the Philadelphia Warriors against the Knicks."},
+  {"id": "spo6", "d": "sports", "q": "Who in 1967 became the first woman to run the Boston Marathon with an official race number?", "a": "Kathrine Switzer", "f": "She wore bib number 261."},
+  {"id": "spo7", "d": "sports", "q": "The Iditarod, held every March in Alaska, is a long-distance race for which kind of team?", "a": "Sled dogs (a dog-sled race)", "f": "The trail covers roughly 1,000 miles."},
+  {"id": "spo8", "d": "sports", "q": "Which country hosted and won the very first FIFA World Cup, in 1930?", "a": "Uruguay", "f": "They beat Argentina 4–2 in the final in Montevideo."},
+  {"id": "gen1", "d": "general", "q": "What was the first item ever scanned with a barcode at a supermarket checkout?", "a": "A pack of chewing gum", "f": "A 10-pack of Wrigley's Juicy Fruit, scanned in Troy, Ohio, in 1974."},
+  {"id": "gen2", "d": "general", "q": "Which letter of the alphabet does not appear in the name of any US state?", "a": "The letter Q", "f": "Every other letter shows up in at least one state name."},
+  {"id": "gen3", "d": "general", "q": "What is a group of flamingos called?", "a": "A flamboyance", "f": "A group is also sometimes called a 'stand'."},
+  {"id": "gen4", "d": "general", "q": "Which is the only country in the world whose national flag is not a rectangle or a square?", "a": "Nepal", "f": "Its flag is made of two stacked pennants."},
+  {"id": "gen5", "d": "general", "q": "What colour is a polar bear's skin?", "a": "Black", "f": "Their fur is translucent, not actually white."},
+  {"id": "gen6", "d": "general", "q": "What is the national animal of Scotland?", "a": "The unicorn", "f": "Scottish kings adopted it in the 12th century."},
+  {"id": "gen7", "d": "general", "q": "Measured from its base on the ocean floor, which mountain is the tallest in the world?", "a": "Mauna Kea (Hawaii)", "f": "It is more than 10,000 m from seabed to summit."},
+  {"id": "gen8", "d": "general", "q": "Which country has the most islands in the world?", "a": "Sweden", "f": "Over 260,000 of them, though almost all are uninhabited."},
+  {"id": "sci9", "d": "science", "q": "What unusual shape are wombat droppings?", "a": "Cubes", "f": "Wombats are the only known animals that produce cube-shaped poo."},
+  {"id": "sci10", "d": "science", "q": "Bananas are very slightly radioactive because they contain which radioactive isotope?", "a": "Potassium-40", "f": "The dose is tiny and harmless."},
+  {"id": "sci11", "d": "science", "q": "Which mineral sits at the top (10) of the Mohs hardness scale?", "a": "Diamond", "f": "Talc is the softest at 1."},
+  {"id": "sci12", "d": "science", "q": "What is the only mammal capable of true, sustained flight?", "a": "The bat", "f": "Flying squirrels and sugar gliders only glide."},
+  {"id": "sci13", "d": "science", "q": "Which planet has the most confirmed moons in our solar system?", "a": "Saturn", "f": "Its count jumped to 274 in 2025 when 128 new moons were confirmed."},
+  {"id": "sci14", "d": "science", "q": "Which non-metal element is, like mercury, liquid at room temperature?", "a": "Bromine", "f": "It is a reddish-brown liquid with a sharp smell."},
+  {"id": "sci15", "d": "science", "q": "Which microscopic animals, nicknamed \"water bears\", can survive the vacuum of space?", "a": "Tardigrades", "f": "They can dry out and survive extreme cold and radiation."},
+  {"id": "sci16", "d": "science", "q": "Which metal has the highest melting point of all the metals?", "a": "Tungsten", "f": "It melts at about 3,422 °C (6,192 °F)."},
+  {"id": "sci17", "d": "science", "q": "Which Scottish scientist discovered penicillin in 1928?", "a": "Alexander Fleming", "f": "He noticed mould killing bacteria in a forgotten petri dish."},
+  {"id": "sci18", "d": "science", "q": "What name is given to the supercontinent that existed roughly 300 million years ago?", "a": "Pangaea", "f": "It began breaking apart around 200 million years ago."},
+  {"id": "sci19", "d": "science", "q": "What is the scientific study of fungi called?", "a": "Mycology", "f": "A mycologist studies mushrooms, moulds and yeasts."},
+  {"id": "sci20", "d": "science", "q": "The Chandrasekhar limit, the maximum mass of a stable white dwarf, is about 1.4 times the mass of what?", "a": "The Sun", "f": "Heavier white dwarfs collapse further."},
+  {"id": "sci21", "d": "science", "q": "Which element is the second most abundant in Earth's crust, after oxygen?", "a": "Silicon", "f": "Together oxygen and silicon make up about three quarters of the crust."},
+  {"id": "sci22", "d": "science", "q": "Which vitamin does the human body make when skin is exposed to sunlight?", "a": "Vitamin D", "f": "It helps the body absorb calcium."},
+  {"id": "sci23", "d": "science", "q": "What is the most abundant element in the universe?", "a": "Hydrogen", "f": "It makes up roughly three quarters of ordinary matter by mass."},
+  {"id": "sci24", "d": "science", "q": "How many chromosomes does a typical human body cell contain?", "a": "46 (23 pairs)", "f": "Egg and sperm cells carry 23."},
+  {"id": "his9", "d": "history", "q": "Which civilization built the mountain citadel of Machu Picchu in the 15th century?", "a": "The Inca", "f": "Spanish conquistadors never found it."},
+  {"id": "his10", "d": "history", "q": "Who became the first emperor of a unified China in 221 BC?", "a": "Qin Shi Huang", "f": "He is buried near the famous Terracotta Army."},
+  {"id": "his11", "d": "history", "q": "Whose almost intact tomb did Howard Carter discover in Egypt's Valley of the Kings in 1922?", "a": "Tutankhamun", "f": "The discovery set off a worldwide craze for all things ancient Egypt."},
+  {"id": "his12", "d": "history", "q": "Which Roman emperor, together with Licinius, issued the Edict of Milan in 313, tolerating Christianity?", "a": "Constantine the Great (Constantine I)", "f": "He later founded Constantinople."},
+  {"id": "his13", "d": "history", "q": "At which 1066 battle did William of Normandy defeat King Harold II of England?", "a": "The Battle of Hastings", "f": "It was fought on 14 October 1066."},
+  {"id": "his14", "d": "history", "q": "Who was the last Tsar of Russia?", "a": "Nicholas II", "f": "He abdicated in March 1917."},
+  {"id": "his15", "d": "history", "q": "The 1630s \"Tulip Mania\" speculative bubble took place in which country?", "a": "The Netherlands (Dutch Republic)", "f": "Historians now debate how big the crash really was."},
+  {"id": "his16", "d": "history", "q": "What was the name of the first artificial satellite, launched by the Soviet Union in 1957?", "a": "Sputnik 1", "f": "It launched on 4 October 1957."},
+  {"id": "his17", "d": "history", "q": "The Rosetta Stone helped scholars decipher which ancient writing system?", "a": "Egyptian hieroglyphs", "f": "Jean-François Champollion cracked the code in 1822."},
+  {"id": "his18", "d": "history", "q": "Which Mongol ruler founded the Yuan dynasty of China?", "a": "Kublai Khan", "f": "He was a grandson of Genghis Khan."},
+  {"id": "his19", "d": "history", "q": "Which 1919 treaty formally ended the war between Germany and the Allies after World War I?", "a": "The Treaty of Versailles", "f": "It was signed in the Hall of Mirrors."},
+  {"id": "his20", "d": "history", "q": "Which Roman emperor ordered a wall built across northern Britain, starting in AD 122?", "a": "Hadrian", "f": "Hadrian's Wall stretched about 73 miles."},
+  {"id": "his21", "d": "history", "q": "In which year was Magna Carta sealed by King John at Runnymede?", "a": "1215", "f": "It limited the king's power under the law."},
+  {"id": "his22", "d": "history", "q": "What was the name of the ship that carried the Pilgrims to America in 1620?", "a": "The Mayflower", "f": "It carried about 100 passengers."},
+  {"id": "his23", "d": "history", "q": "Which US president completed the 1803 Louisiana Purchase?", "a": "Thomas Jefferson", "f": "It roughly doubled the size of the United States."},
+  {"id": "his24", "d": "history", "q": "Which empire had its capital at Tenochtitlan, on the site of modern Mexico City?", "a": "The Aztec Empire", "f": "Hernán Cortés conquered it in 1521."},
+  {"id": "foo9", "d": "food", "q": "Which country is the birthplace of the mojito cocktail?", "a": "Cuba", "f": "It is traditionally made with rum, mint, lime, sugar and soda."},
+  {"id": "foo10", "d": "food", "q": "Which Middle Eastern sesame-seed paste is a key ingredient in hummus?", "a": "Tahini", "f": "It is made from ground sesame seeds."},
+  {"id": "foo11", "d": "food", "q": "In which Spanish region did paella originate?", "a": "Valencia", "f": "The original used rabbit, chicken and snails, not seafood."},
+  {"id": "foo12", "d": "food", "q": "Which Italian city is most famous for traditional balsamic vinegar?", "a": "Modena (also Reggio Emilia)", "f": "The traditional kind is aged for at least 12 years."},
+  {"id": "foo13", "d": "food", "q": "What is the Korean fermented cabbage dish served as a side with almost every meal?", "a": "Kimchi", "f": "It is seasoned with chili, garlic and ginger."},
+  {"id": "foo14", "d": "food", "q": "Which nut is the main ingredient of marzipan?", "a": "Almonds", "f": "It is ground almonds mixed with sugar."},
+  {"id": "foo15", "d": "food", "q": "What French technique, famously used for duck legs, involves slowly cooking meat submerged in its own fat?", "a": "Confit", "f": "It was originally a way of preserving meat."},
+  {"id": "foo16", "d": "food", "q": "Vietnamese bánh mì sandwiches are served on bread inspired by which European country's baguette?", "a": "France", "f": "It arrived during French colonial rule."},
+  {"id": "foo17", "d": "food", "q": "Which pasta's name literally means \"little worms\" in Italian?", "a": "Vermicelli", "f": "It is a very thin spaghetti-like pasta."},
+  {"id": "foo18", "d": "food", "q": "What is the national dish of Hungary, a paprika-spiced stew of meat and vegetables?", "a": "Goulash (gulyás)", "f": "It began as a herdsmen's stew."},
+  {"id": "foo19", "d": "food", "q": "Which fish is cured with salt, sugar and dill to make the Nordic dish gravlax?", "a": "Salmon", "f": "The name comes from words meaning \"buried salmon\"."},
+  {"id": "foo20", "d": "food", "q": "What is the Japanese rice wine commonly called?", "a": "Sake (nihonshu)", "f": "It is brewed by fermenting polished rice."},
+  {"id": "foo21", "d": "food", "q": "Which spice, sold as rolled sticks or ground powder, comes from the inner bark of a tree?", "a": "Cinnamon", "f": "It is harvested from trees of the genus Cinnamomum."},
+  {"id": "foo22", "d": "food", "q": "What is the main ingredient of the Greek dip tzatziki?", "a": "Strained yogurt (with cucumber and garlic)", "f": "It is often served with grilled meats."},
+  {"id": "foo23", "d": "food", "q": "Which country is the world's largest producer of vanilla?", "a": "Madagascar", "f": "Vanilla comes from the pods of an orchid."},
+  {"id": "foo24", "d": "food", "q": "Which country drinks the most tea per person?", "a": "Turkey", "f": "Tea is usually served in small tulip-shaped glasses."},
+  {"id": "spo9", "d": "sports", "q": "How many players per side are on the field in a rugby union match?", "a": "15", "f": "Rugby league uses 13."},
+  {"id": "spo10", "d": "sports", "q": "Which country has won the most men's FIFA World Cups?", "a": "Brazil (five)", "f": "They won in 1958, 1962, 1970, 1994 and 2002."},
+  {"id": "spo11", "d": "sports", "q": "In tennis, what is a score of zero called?", "a": "Love", "f": "The origin of the word is debated."},
+  {"id": "spo12", "d": "sports", "q": "Which swimmer has won the most Olympic gold medals of all time?", "a": "Michael Phelps (23)", "f": "He retired with 28 Olympic medals in total."},
+  {"id": "spo13", "d": "sports", "q": "In which city were the first modern Olympic Games held in 1896?", "a": "Athens", "f": "The marathon was created for these games."},
+  {"id": "spo14", "d": "sports", "q": "In golf, what is the term for a score of three under par on a single hole?", "a": "An albatross (double eagle in the US)", "f": "It is much rarer than a hole-in-one."},
+  {"id": "spo15", "d": "sports", "q": "Which boxer, born Cassius Clay, was nicknamed \"The Greatest\"?", "a": "Muhammad Ali", "f": "He won the heavyweight title three times."},
+  {"id": "spo16", "d": "sports", "q": "Which Jamaican sprinter holds the 100 m world record of 9.58 seconds?", "a": "Usain Bolt", "f": "He set it in Berlin in 2009."},
+  {"id": "spo17", "d": "sports", "q": "Which country won the 2022 FIFA World Cup in Qatar?", "a": "Argentina", "f": "They beat France on penalties after a 3–3 draw."},
+  {"id": "spo18", "d": "sports", "q": "What is the name of the trophy awarded to the NHL champion?", "a": "The Stanley Cup", "f": "It is named after a Governor General of Canada."},
+  {"id": "spo19", "d": "sports", "q": "The Salchow jump belongs to which Winter Olympic sport?", "a": "Figure skating", "f": "It is named after Swedish skater Ulrich Salchow."},
+  {"id": "spo20", "d": "sports", "q": "How long is a marathon?", "a": "42.195 km (26.2 miles)", "f": "The odd distance was fixed at the 1908 London Olympics."},
+  {"id": "spo21", "d": "sports", "q": "The Davis Cup is the premier international team competition in which sport?", "a": "Tennis", "f": "It began in 1900."},
+  {"id": "spo22", "d": "sports", "q": "How many men's Grand Slam singles titles did Roger Federer win in his career?", "a": "20", "f": "Eight of them came at Wimbledon."},
+  {"id": "spo23", "d": "sports", "q": "Which footballer won three World Cups with Brazil, in 1958, 1962 and 1970?", "a": "Pelé", "f": "He is the only player to win three World Cups."},
+  {"id": "spo24", "d": "sports", "q": "Which sport's world championship trophy is the Webb Ellis Cup?", "a": "Rugby union", "f": "It is named after the schoolboy said to have invented the game."},
+  {"id": "gen9", "d": "general", "q": "What is a group of crows called?", "a": "A murder", "f": "A group of ravens is sometimes called an unkindness."},
+  {"id": "gen10", "d": "general", "q": "What is the capital of Australia?", "a": "Canberra", "f": "It was chosen as a compromise between Sydney and Melbourne."},
+  {"id": "gen11", "d": "general", "q": "Which is the smallest country in the world by area?", "a": "Vatican City", "f": "It covers about 0.44 square kilometres."},
+  {"id": "gen12", "d": "general", "q": "What is the largest desert on Earth?", "a": "Antarctica (the Antarctic Desert)", "f": "A desert is defined by low precipitation, not heat."},
+  {"id": "gen13", "d": "general", "q": "Which river is the longest in Europe?", "a": "The Volga", "f": "It flows about 3,500 km into the Caspian Sea."},
+  {"id": "gen14", "d": "general", "q": "Which language has the most native speakers in the world?", "a": "Mandarin Chinese", "f": "English has far more speakers in total, but fewer native ones."},
+  {"id": "gen15", "d": "general", "q": "In which country is the rock-carved ancient city of Petra?", "a": "Jordan", "f": "It was the capital of the Nabataean kingdom."},
+  {"id": "gen16", "d": "general", "q": "Who painted \"The Persistence of Memory\", famous for its melting clocks?", "a": "Salvador Dalí", "f": "He painted it in 1931."},
+  {"id": "gen17", "d": "general", "q": "Which country has the most time zones when its overseas territories are counted?", "a": "France (12, or 13 with its Antarctic claim)", "f": "Metropolitan France itself uses just one."},
+  {"id": "gen18", "d": "general", "q": "What is the capital of Turkey?", "a": "Ankara", "f": "Istanbul is larger, but Ankara has been the capital since 1923."},
+  {"id": "gen19", "d": "general", "q": "Which author wrote the dystopian novel \"1984\"?", "a": "George Orwell", "f": "It was published in 1949."},
+  {"id": "gen20", "d": "general", "q": "How many keys does a standard modern piano have?", "a": "88", "f": "That is 52 white keys and 36 black keys."},
+  {"id": "gen21", "d": "general", "q": "Which ocean contains the deepest known point on Earth, the Mariana Trench?", "a": "The Pacific Ocean", "f": "The trench bottoms out at roughly 11 km deep."},
+  {"id": "gen22", "d": "general", "q": "How many strings does a standard violin have?", "a": "Four", "f": "They are tuned G, D, A and E."},
+  {"id": "gen23", "d": "general", "q": "Which country has more pyramids than any other?", "a": "Sudan", "f": "It has over 200, roughly double Egypt's count."},
+  {"id": "gen24", "d": "general", "q": "Which US state has the most lakes?", "a": "Alaska", "f": "It has over three million lakes, far more than Minnesota."}
+]</script>
 
 <script>
 (() => {
@@ -593,7 +666,7 @@ const GUESS_CHANCES = 2;
 const PTS = { guesser1:200, guesser2:100, spy:100, liar:150 };
 const OFFLINE_VOID_MS = 20000; // guesser/spy offline this long = round voided
 const GAME_ID = 'truthdetector';
-const ROOM_ROOT = 'rooms/BF';       // rooms/BFABCD — same path family as Brain Flip, so the same database rules apply
+const ROOM_ROOT = 'truthRooms/';    // truthRooms/ABCD — its own path with its own strict rules (see database.rules.json)
 
 /* ---- Firebase (same project as Brain Flip / Hand Cricket) ---- */
 const firebaseConfig={
@@ -762,17 +835,19 @@ function startHost(){
 }
 
 /* ---- room (Firebase RTDB) ----
-   rooms/BFxxxx/up             phones -> host  (push list: join / vote / skip / next / guess); host deletes each after reading
-   rooms/BFxxxx/down/<cid>     host -> phone   {seq, ev, st}  ev = one-off event, st = full state snapshot
-   rooms/BFxxxx/presence/<cid> true while a phone is connected                                            */
+   truthRooms/ABCD/up             phones -> host  (push list: join / vote / skip / next / guess); host deletes each after reading
+   truthRooms/ABCD/down/<cid>  host -> phone   {seq, ev, st}  ev = one-off event, st = full state snapshot
+   truthRooms/ABCD/presence/<cid> true while a phone is connected                                            */
 async function openRoom(){
   const badge=$('#netBadge'); badge.textContent='● CREATING ROOM…'; badge.style.color='#ffb020';
   try{
     const user=await withTimeout(ensureAuth(),12000,'signing in to Firebase'); H.uid=user.uid;
+    let lastErr=null;
     for(let a=0;a<10;a++){
       const code=genCode(), room=fbDb.ref(ROOM_ROOT+code);
-      const claim=await withTimeout(room.transaction(cur=>cur===null?{game:GAME_ID,hostId:user.uid,createdAt:firebase.database.ServerValue.TIMESTAMP}:undefined),12000,'reserving a room');
-      if(!claim.committed) continue;
+      try{    // the rules only allow creating a room that doesn't exist yet, so a taken code is rejected atomically
+        await withTimeout(room.set({game:GAME_ID,hostId:user.uid,createdAt:firebase.database.ServerValue.TIMESTAMP}),12000,'reserving a room');
+      }catch(e){ lastErr=e; if(e&&e.code==='timeout') throw e; continue; }
       H.code=code; H.room=room; room.onDisconnect().remove();
       room.child('up').on('child_added', s=>{ const m=s.val(); s.ref.remove().catch(()=>{}); onMsg(m); });
       room.child('presence').on('value', s=>onPresence(s.val()||{}));
@@ -789,7 +864,7 @@ async function openRoom(){
       });
       return;
     }
-    throw new Error('Could not reserve a room code. Reload and try again.');
+    throw new Error('Could not reserve a room code'+(lastErr?' ('+errText(lastErr)+')':'')+'. Reload and try again.');
   }catch(e){
     badge.textContent='● ROOM ERROR'; badge.style.color='#ff6b7d'; $('#roomCode').textContent='ERR';
     console.error('room failed',e);
@@ -857,7 +932,7 @@ function quitKey(){
 let toastT=0;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
 
-/* ---- host -> phones: rooms/BFxxxx/down/<cid> = {seq, ev, st} ---- */
+/* ---- host -> phones: truthRooms/ABCD/down/<cid> = {seq, ev, st} ---- */
 function send(p,ev){
   if(!H.room) return;
   p.seq=(p.seq||0)+1;
@@ -953,7 +1028,7 @@ function snapshot(p){
     }
     if(ph==='question') o.skip={votes:skipVotes(),need:needSkip(),mine:R.skip.has(p.cid),left:Math.max(0,MAX_SKIPS-R.skipsUsed)};
     if(ph==='interro'){
-      o.chances=R.chances; o.lock=H.lock;
+      o.chances=R.chances; o.cmax=R.cmax; o.lock=H.lock;
       const sp=H.players.get(R.order[R.spk]); o.speaker=sp?{name:sp.name,emoji:sp.emoji}:null;
       if(role==='guesser') o.cands=R.order.map(cid=>{ const q=H.players.get(cid); return {cid,name:q.name,emoji:q.emoji,color:q.color,out:R.wrong.includes(cid)}; });
     }
@@ -1021,7 +1096,7 @@ function beginRound(){
   for(let i=0;i<n;i++){ const p=H.players.get(H.order[(H.round+i)%n]); if(p&&p.connected){ g=p; break; } }
   if(!g) g=connectedPlayers()[0];            // (always true here) — never bounce back into 'wait' from a 'wait' poll
   H.R={g:g.cid,domOrder:shuffle(DOMAINS.map(d=>d.id)),domain:null,won:false,votes:new Map(),q:null,spy:null,parts:[],
-       skip:new Set(),skipsUsed:0,order:[],spk:0,chances:GUESS_CHANCES,wrong:[],delta:new Map(),outcome:'',attempts:0,voidWhy:''};
+       skip:new Set(),skipsUsed:0,order:[],spk:0,chances:GUESS_CHANCES,cmax:GUESS_CHANCES,wrong:[],delta:new Map(),outcome:'',attempts:0,voidWhy:''};
   H.lock=false; H.domKey='';
   Sfx.sting();
   go('domain',DOMAIN_MS,finishDomain);
@@ -1042,11 +1117,17 @@ function finishDomain(){
 }
 
 /* Phase 2 — question + secret roles + democracy skip */
+/* Questions already asked on THIS device are remembered across games (localStorage), so nights don't repeat
+   until a whole domain has been used up — then only that domain starts over. */
+function loadSeen(){ try{ const a=JSON.parse(store.get('td_seen')||'[]'); return new Set(Array.isArray(a)?a:[]); }catch(e){ return new Set(); } }
+function saveSeen(set){ store.set('td_seen',JSON.stringify([...set])); }
 function pickQuestion(domainId){
-  let pool=QUESTIONS.filter(q=>q.d===domainId&&!H.used.has(q.id));
+  const seen=loadSeen(), inDom=QUESTIONS.filter(q=>q.d===domainId);
+  let pool=inDom.filter(q=>!H.used.has(q.id)&&!seen.has(q.id));
+  if(!pool.length){ inDom.forEach(q=>seen.delete(q.id)); pool=inDom.filter(q=>!H.used.has(q.id)); }   // domain exhausted on this device: start it over
   if(!pool.length) pool=QUESTIONS.filter(q=>!H.used.has(q.id));
-  if(!pool.length){ H.used.clear(); pool=QUESTIONS.filter(q=>q.d===domainId); }
-  const q=pick(pool); H.used.add(q.id); return q;
+  if(!pool.length){ H.used.clear(); pool=inDom; }
+  const q=pick(pool); H.used.add(q.id); seen.add(q.id); saveSeen(seen); return q;
 }
 function dealQuestion(){
   const R=H.R; if(!R) return;
@@ -1072,9 +1153,9 @@ function onSkip(p){
 /* Phase 3 — 10 s bluffing countdown */
 function startPrep(){ Sfx.go(); go('prep',PREP_MS,startInterro); }
 
-/* Phase 4 — interrogation: 2 chances */
+/* Phase 4 — interrogation: 2 chances (only 1 when there are just 2 suspects, i.e. a 3-player game — otherwise the 2nd guess would be a free win) */
 function startInterro(){
-  const R=H.R; R.order=shuffle(R.parts); R.spk=0; R.chances=GUESS_CHANCES; R.wrong=[]; H.lock=false;
+  const R=H.R; R.order=shuffle(R.parts); R.spk=0; R.cmax=R.order.length>=3?GUESS_CHANCES:1; R.chances=R.cmax; R.wrong=[]; H.lock=false;
   Sfx.go(); go('interro',0,null);
 }
 function onNext(p){
@@ -1088,7 +1169,7 @@ function onGuess(p,m){
   H.lock=true;
   const target=H.players.get(t), spy=H.players.get(R.spy);
   if(t===R.spy){
-    R.attempts=GUESS_CHANCES-R.chances+1; R.outcome=R.attempts===1?'try1':'try2';
+    R.attempts=R.cmax-R.chances+1; R.outcome=R.attempts===1?'try1':'try2';
     give(p,R.attempts===1?PTS.guesser1:PTS.guesser2); give(spy,PTS.spy);
     p.stats.detects++; spy.stats.caught++;
     banner('good','TRUTH DETECTED!',spy.emoji+' '+spy.name+' TOLD THE TRUTH',3200);
@@ -1249,9 +1330,9 @@ function renderCase(){
     $('#skipLeft').textContent=left>0?('More than 50% must agree · '+left+' skip'+(left>1?'s':'')+' left · tap SKIP on your phone'):'Time to bluff!';
   }
   if(H.phase==='interro'){
-    const pips=$('#chancePips'); const used=GUESS_CHANCES-R.chances;
+    const pips=$('#chancePips'); const used=R.cmax-R.chances;
     pips.innerHTML='CHANCES ';
-    for(let i=0;i<GUESS_CHANCES;i++){ const x=document.createElement('span'); x.className='pip'+(i<used?' used':''); pips.appendChild(x); }
+    for(let i=0;i<R.cmax;i++){ const x=document.createElement('span'); x.className='pip'+(i<used?' used':''); pips.appendChild(x); }
     const sl=$('#speakList'); sl.innerHTML='';
     R.order.forEach((cid,i)=>{
       const q=H.players.get(cid); if(!q) return;
@@ -1527,7 +1608,7 @@ function renderCtrl(){
   else if(v==='vGuess'){
     $('#gSpeaker').textContent=s.speaker?('🎤 NOW SPEAKING: '+s.speaker.emoji+' '+s.speaker.name):'';
     const gc=$('#gChances'); gc.innerHTML='CHANCES ';
-    for(let i=0;i<2;i++){ const x=document.createElement('span'); x.className='pip'+(i<2-(s.chances==null?2:s.chances)?' used':''); gc.appendChild(x); }
+    const cm=s.cmax||2; for(let i=0;i<cm;i++){ const x=document.createElement('span'); x.className='pip'+(i<cm-(s.chances==null?cm:s.chances)?' used':''); gc.appendChild(x); }
     const box=$('#gList'); box.innerHTML='';
     (s.cands||[]).forEach(c=>{
       const b=document.createElement('button'); b.type='button'; b.style.setProperty('--pc',c.color);
