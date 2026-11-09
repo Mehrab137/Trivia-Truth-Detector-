@@ -18,8 +18,9 @@
                                the page, click "JOIN AS PLAYER", type the code.
   4) Host presses OPEN CASE (Enter / Space). Needs 3-8 players.
   Firebase: needs Anonymous sign-in enabled (already true for your cricket / Brain Flip project)
-  and the rules from  database.rules.json  merged into your Realtime Database rules.
-  Rooms live under  truthRooms/ABCD  — separate from your other games' rooms.
+  and your existing rules (signed-in users may read/write  rooms/$roomId).
+  Rooms use the same  rooms/BFABCD  path as Brain Flip; the room's  game  field says
+  "truthdetector", so the two games never mix.
 
   Host keys: Enter/Space = start / skip the current timer / play again
              Q Q = quit to lobby (press twice) · M = mute · F = fullscreen
@@ -666,7 +667,7 @@ const GUESS_CHANCES = 2;
 const PTS = { guesser1:200, guesser2:100, spy:100, liar:150 };
 const OFFLINE_VOID_MS = 20000; // guesser/spy offline this long = round voided
 const GAME_ID = 'truthdetector';
-const ROOM_ROOT = 'truthRooms/';    // truthRooms/ABCD — its own path with its own strict rules (see database.rules.json)
+const ROOM_ROOT = 'rooms/BF';       // rooms/BFABCD — same path family as Brain Flip, so your existing database rules apply
 
 /* ---- Firebase (same project as Brain Flip / Hand Cricket) ---- */
 const firebaseConfig={
@@ -835,19 +836,17 @@ function startHost(){
 }
 
 /* ---- room (Firebase RTDB) ----
-   truthRooms/ABCD/up             phones -> host  (push list: join / vote / skip / next / guess); host deletes each after reading
-   truthRooms/ABCD/down/<cid>  host -> phone   {seq, ev, st}  ev = one-off event, st = full state snapshot
-   truthRooms/ABCD/presence/<cid> true while a phone is connected                                            */
+   rooms/BFABCD/up             phones -> host  (push list: join / vote / skip / next / guess); host deletes each after reading
+   rooms/BFABCD/down/<cid>  host -> phone   {seq, ev, st}  ev = one-off event, st = full state snapshot
+   rooms/BFABCD/presence/<cid> true while a phone is connected                                            */
 async function openRoom(){
   const badge=$('#netBadge'); badge.textContent='● CREATING ROOM…'; badge.style.color='#ffb020';
   try{
     const user=await withTimeout(ensureAuth(),12000,'signing in to Firebase'); H.uid=user.uid;
-    let lastErr=null;
     for(let a=0;a<10;a++){
       const code=genCode(), room=fbDb.ref(ROOM_ROOT+code);
-      try{    // the rules only allow creating a room that doesn't exist yet, so a taken code is rejected atomically
-        await withTimeout(room.set({game:GAME_ID,hostId:user.uid,createdAt:firebase.database.ServerValue.TIMESTAMP}),12000,'reserving a room');
-      }catch(e){ lastErr=e; if(e&&e.code==='timeout') throw e; continue; }
+      const claim=await withTimeout(room.transaction(cur=>cur===null?{game:GAME_ID,hostId:user.uid,createdAt:firebase.database.ServerValue.TIMESTAMP}:undefined),12000,'reserving a room');
+      if(!claim.committed) continue;
       H.code=code; H.room=room; room.onDisconnect().remove();
       room.child('up').on('child_added', s=>{ const m=s.val(); s.ref.remove().catch(()=>{}); onMsg(m); });
       room.child('presence').on('value', s=>onPresence(s.val()||{}));
@@ -864,7 +863,7 @@ async function openRoom(){
       });
       return;
     }
-    throw new Error('Could not reserve a room code'+(lastErr?' ('+errText(lastErr)+')':'')+'. Reload and try again.');
+    throw new Error('Could not reserve a room code. Reload and try again.');
   }catch(e){
     badge.textContent='● ROOM ERROR'; badge.style.color='#ff6b7d'; $('#roomCode').textContent='ERR';
     console.error('room failed',e);
@@ -932,7 +931,7 @@ function quitKey(){
 let toastT=0;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
 
-/* ---- host -> phones: truthRooms/ABCD/down/<cid> = {seq, ev, st} ---- */
+/* ---- host -> phones: rooms/BFABCD/down/<cid> = {seq, ev, st} ---- */
 function send(p,ev){
   if(!H.room) return;
   p.seq=(p.seq||0)+1;
